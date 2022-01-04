@@ -1,16 +1,17 @@
+using CliWrap;
 using SystemdTemplate;
 using Spectre.Console;
 using System.Diagnostics;
 
 if (args.Any() && args[0] == "install")
 {
-    string appName = nameof(SystemdTemplate);
+    string serviceName = nameof(SystemdTemplate).ToLower();
     string processPath = Environment.ProcessPath!;
     string processFileName = Path.GetFileName(processPath);
     Console.WriteLine($"Installing {processFileName} as a systemd service");
 
     var unitFileContents = @$"[Unit]
-Description={nameof(SystemdTemplate)}
+Description={serviceName}
 
 [Service]
 Type=notify
@@ -19,7 +20,7 @@ ExecStart={processPath}
 [Install]
 WantedBy=multi-user.target";
 
-    var unitFilePath = $"/etc/systemd/system/{appName.ToLower()}.service";
+    var unitFilePath = $"/etc/systemd/system/{serviceName}.service";
 
     try
     {
@@ -31,6 +32,12 @@ WantedBy=multi-user.target";
         AnsiConsole.WriteException(ex.Demystify());
         return 1;
     }
+
+    await (Cli.Wrap("systemctl").WithArguments($"enable {serviceName}") |
+        (Console.WriteLine, Console.Error.WriteLine)).ExecuteAsync();
+
+    await (Cli.Wrap("systemctl").WithArguments($"start {serviceName}") |
+        (Console.WriteLine, Console.Error.WriteLine)).ExecuteAsync();
 
     return 0;
 }
